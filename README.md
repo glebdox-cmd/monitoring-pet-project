@@ -17,46 +17,55 @@
 ## 1. Подготовка сервера (Hardening)
 
 ### 1.1. Создание рабочего пользователя
+
 Работать под `root` через SSH — плохая практика. Мы создали пользователя `gleb` и дали ему право на `sudo` без пароля.
 
 ```bash
 adduser gleb --gecos ""
 usermod -aG sudo gleb
+```
 Для sudo без пароля: visudo → gleb ALL=(ALL) NOPASSWD: ALL
 
 1.2. Вход по SSH-ключу
+
 Пароли можно подобрать, ключи — нет. Мы скопировали публичный ключ с локального ПК на сервер.
 
-bash
+```bash
 mkdir -p /home/gleb/.ssh
 echo "ПУБЛИЧНЫЙ_КЛЮЧ" >> /home/gleb/.ssh/authorized_keys
 chmod 700 /home/gleb/.ssh
 chmod 600 /home/gleb/.ssh/authorized_keys
 chown -R gleb:gleb /home/gleb/.ssh
+```
 1.3. Финализация защиты SSH
+
 Мы запретили вход по паролю, вход для root и сменили порт на 2224.
 
-conf
+```conf
 PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
 AllowUsers gleb
 Port 2224
+```
 Проблема: Сервер всё ещё пускал по паролю.
 Диагностика: sudo sshd -T | grep -i passwordauth показал yes.
 Решение: Файл хостера в /etc/ssh/sshd_config.d/ переопределял настройку. Исправили.
 
 1.4. Быстрый вход по SSH
+
 Файл ~/.ssh/config на локальном ПК:
 
-text
+```text
 Host myserver
     HostName 103.90.75.91
     Port 2224
     User gleb
     IdentityFile ~/.ssh/id_ed25519
+```
 2. Установка Docker
-bash
+   
+```bash
 sudo apt update && sudo apt install ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -68,8 +77,10 @@ bash
 sudo mkdir -p /opt/monitoring/{prometheus/data,grafana/data,loki,alertmanager}
 sudo chown -R gleb:gleb /opt/monitoring
 docker network create monitoring_net
+```
 3. Итоговый docker-compose.yml
-yaml
+   
+```yaml
 services:
   prometheus:
     image: prom/prometheus:latest
@@ -148,8 +159,10 @@ services:
 networks:
   monitoring_net:
     external: true
+```
 4. Prometheus + Node Exporter
-yaml
+   
+```yaml
 global:
   scrape_interval: 15s
 
@@ -195,8 +208,10 @@ scrape_configs:
         labels:
           job: varlogs
           __path__: /var/log/*.log
+```
 6. Alertmanager + Telegram
-yaml
+   
+```yaml
 global:
   resolve_timeout: 5m
   telegram_api_url: "https://api.telegram.org"
@@ -239,13 +254,11 @@ groups:
         annotations:
           summary: "High memory usage on {{ $labels.instance }}"
           description: "Memory usage > 85% (current: {{ $value }}%)"
+```
 7. Глоссарий
+ 
 Target — сервис, у которого Prometheus собирает метрики.
-
 Job — группа однотипных целей.
-
 Volume — хранение данных контейнера на диске хоста.
-
 LogQL — язык запросов к логам в Loki.
-
 Alert Rule — условие для срабатывания алерта.
