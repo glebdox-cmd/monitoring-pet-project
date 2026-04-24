@@ -183,7 +183,9 @@ scrape_configs:
   - job_name: 'node_exporter'
     static_configs:
       - targets: ['node_exporter:9100']
+```
 5. Loki + Promtail
+```
 Конфиг Loki
 yaml
 auth_enabled: false
