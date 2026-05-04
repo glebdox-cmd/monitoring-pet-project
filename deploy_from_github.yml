@@ -1,0 +1,55 @@
+---
+- name: Deploy Monitoring Stack from zero
+  hosts: myserver
+  become: yes
+  vars:
+    project_dir: "/opt/monitoring"
+    repo_url: "https://github.com/glebdox-cmd/monitoring-pet-project.git"
+
+  tasks:
+    - name: Install system packages
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - git
+          - python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Install Docker SDK for Python
+      ansible.builtin.pip:
+        name: docker
+        state: present
+
+    - name: Remove old project directory (if exists)
+      ansible.builtin.file:
+        path: "{{ project_dir }}"
+        state: absent
+
+    - name: Clone project from GitHub
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ project_dir }}"
+        version: main
+      become: no
+
+    - name: Run Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_dir }}"
+        state: present
+      register: compose_result
+
+    - name: Wait for services to stabilize
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Check critical containers status
+      ansible.builtin.shell: |
+        docker ps --filter "name=prometheus" --filter "name=grafana" \
+        --filter "name=loki" --filter "name=postgres" \
+        --format "table {{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}"
+      register: services_list
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: "{{ services_list.stdout }}"
