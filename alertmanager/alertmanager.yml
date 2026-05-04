@@ -1,0 +1,20 @@
+global:
+  resolve_timeout: 5m
+  telegram_api_url: "https://api.telegram.org"
+
+route:
+  receiver: 'telegram-notifications'
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+
+receivers:
+  - name: 'telegram-notifications'
+    telegram_configs:
+      - bot_token: '8741680180:AAEnLeOaASKG_IUlTXnPa3r2pwl_zOuHias'
+        chat_id: 910370348
+        message: |
+          🚨 *Alert:* {{ .GroupLabels.alertname }}
+          📊 *Status:* {{ .Status }}
+          📝 *Description:* {{ .CommonAnnotations.description }}
